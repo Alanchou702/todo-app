@@ -383,6 +383,97 @@
     }
 
     /* ============================================
+       Install Prompt Banner
+       ============================================ */
+    .install-banner {
+      position: fixed;
+      bottom: calc(90px + var(--safe-bottom));
+      left: 16px;
+      right: 16px;
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+      padding: 16px 20px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      z-index: 80;
+      animation: slideUp 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+      border: 1px solid var(--border);
+    }
+
+    .install-banner.show {
+      display: flex;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .install-banner-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .install-banner-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .install-banner-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .install-banner-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .install-banner-desc {
+      font-size: 13px;
+      color: var(--text-tertiary);
+    }
+
+    .install-banner-btn {
+      flex-shrink: 0;
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .install-banner-btn:active {
+      transform: scale(0.95);
+      opacity: 0.9;
+    }
+
+    .install-banner-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    /* ============================================
        Modal (iOS Sheet Style)
        ============================================ */
     .modal-overlay {
@@ -635,6 +726,19 @@
     <!-- Task list -->
     <ul class="task-list" id="taskList"></ul>
   </main>
+
+  <!-- Install Banner (shown when PWA install is available) -->
+  <div class="install-banner" id="installBanner">
+    <div class="install-banner-icon">
+      <img src="icon-180.png" alt="App Icon">
+    </div>
+    <div class="install-banner-content">
+      <div class="install-banner-title">添加到主屏幕</div>
+      <div class="install-banner-desc">一键安装到桌面，快速使用</div>
+    </div>
+    <button class="install-banner-btn" id="installBtn">安装</button>
+    <button class="install-banner-close" id="installClose">✕</button>
+  </div>
 
   <!-- FAB (Floating Action Button) -->
   <button class="fab" id="fabBtn" aria-label="添加任务">
@@ -1070,25 +1174,51 @@
       }
 
       // ============================================
+      // PWA Install Prompt
+      // ============================================
+      let deferredPrompt = null;
+      const installBanner = $('#installBanner');
+      const installBtn = $('#installBtn');
+      const installClose = $('#installClose');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBanner.classList.add('show');
+      });
+
+      installBtn.addEventListener('click', () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+            installBanner.classList.remove('show');
+          });
+        }
+      });
+
+      installClose.addEventListener('click', () => {
+        installBanner.classList.remove('show');
+      });
+
+      // ============================================
       // Service Worker Registration
       // ============================================
       function registerSW() {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker
             .register('/sw.js')
-            .then((reg) => console.log('SW registered:', reg.scope))
+            .then((reg) => {
+              console.log('SW registered:', reg.scope);
+              // Check if already installed
+              return reg.installing ? reg.installing.state : 'activated';
+            })
             .catch((err) => console.log('SW registration failed:', err));
         }
       }
-
-      // ============================================
-      // iOS Install Prompt (Add to Home Screen)
-      // ============================================
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-      });
 
       // ============================================
       // Init
@@ -1143,6 +1273,16 @@
 
         // Register service worker
         registerSW();
+
+        // Check if already installed (if SW is active, don't show banner)
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then((reg) => {
+            if (reg.active && reg.installing === null) {
+              // Already installed, hide any banner
+              installBanner.classList.remove('show');
+            }
+          });
+        }
 
         // Initial render
         render();
