@@ -1,4 +1,10 @@
-module.exports = {
-  // 强制 HTTPS，PWA 必需
-  // SW 路由：静态资源走缓存，其他请求走网络
-};
+{
+  "name": "todo-app",
+  "buildCommand": null,
+  "outputDirectory": ".",
+  "framework": null,
+  "rewrites": [
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/manifest.json", "destination": "/manifest.json" }
+  ]
+}
