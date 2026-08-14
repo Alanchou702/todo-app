@@ -1,0 +1,4 @@
+module.exports = {
+  // 强制 HTTPS，PWA 必需
+  // SW 路由：静态资源走缓存，其他请求走网络
+};
