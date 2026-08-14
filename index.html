@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="待办清单">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="description" content="简洁高效的待办事项管理工具">
+  <title>待办清单</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%236366f1'/><text x='90' y='120' text-anchor='middle' font-size='110' fill='white'>✓</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='42' fill='%236366f1'/><text x='96' y='135' text-anchor='middle' font-size='130' fill='white'>✓</text></svg>">
+  <style>
+    /* ============================================
+       CSS Reset & Base
+       ============================================ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --primary-dark: #4f46e5;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --bg: #f2f2f7;
+      --card-bg: #ffffff;
+      --text-primary: #000000;
+      --text-secondary: #3a3a3c;
+      --text-tertiary: #8e8e93;
+      --border: #e5e5ea;
+      --separator: rgba(60,60,67,0.1);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+      --radius-sm: 10px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+        'Helvetica Neue', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================================
+       Status Bar Spacer (iOS)
+       ============================================ */
+    .status-bar-spacer {
+      height: var(--safe-top);
+      background: var(--bg);
+    }
+
+    /* ============================================
+       Header
+       ============================================ */
+    .app-header {
+      background: var(--bg);
+      padding: 10px 20px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0 12px;
+    }
+
+    .app-title {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+
+    .task-count {
+      font-size: 13px;
+      background: var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================
+       Category Tabs
+       ============================================ */
+    .category-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding-bottom: 4px;
+    }
+
+    .category-tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: none;
+      background: var(--border);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* ============================================
+       Main Content
+       ============================================ */
+    .app-main {
+      height: calc(100vh - 90px - var(--safe-bottom));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 16px 100px;
+    }
+
+    /* ============================================
+       Empty State
+       ============================================ */
+    .empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .empty-state h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .empty-state p {
+      color: var(--text-tertiary);
+      font-size: 15px;
+    }
+
+    /* ============================================
+       Section Headers
+       ============================================ */
+    .section-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 4px 6px;
+    }
+
+    /* ============================================
+       Task List (Apple Settings Style)
+       ============================================ */
+    .task-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .task-group {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      margin-bottom: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 0.5px solid var(--separator);
+      transition: var(--transition);
+      animation: slideIn 0.3s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .task-item:last-child {
+      border-bottom: none;
+    }
+
+    .task-item.completed .task-text {
+      text-decoration: line-through;
+      color: var(--text-tertiary);
+    }
+
+    .task-item.completed .task-category {
+      opacity: 0.5;
+    }
+
+    /* Swipe action background */
+    .task-item .swipe-bg {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 80px;
+      background: var(--danger);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .task-item.swiped {
+      transform: translateX(-80px);
+    }
+
+    .task-item.swiped .swipe-bg {
+      opacity: 1;
+    }
+
+    /* Apple-style checkbox */
+    .task-check {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--text-tertiary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+    }
+
+    .task-check:hover {
+      border-color: var(--primary);
+    }
+
+    .task-check.checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .task-check.checked::after {
+      content: '';
+      width: 5px;
+      height: 9px;
+      border: 2px solid white;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translateY(-1px);
+    }
+
+    .task-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-text {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--text-primary);
+      word-break: break-word;
+      transition: var(--transition);
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    .task-category {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .cat-work { background: #e8e8ff; color: #4f46e5; }
+    .cat-personal { background: #ffe4ec; color: #db2777; }
+    .cat-shopping { background: #d1fae5; color: #059669; }
+
+    .task-due {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    .task-due.overdue {
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .task-priority-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .priority-high { background: var(--danger); }
+    .priority-medium { background: var(--warning); }
+    .priority-low { background: var(--success); }
+
+    /* ============================================
+       FAB Button
+       ============================================ */
+    .fab {
+      position: fixed;
+      bottom: calc(28px + var(--safe-bottom));
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border: none;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      z-index: 90;
+    }
+
+    .fab:active {
+      transform: scale(0.92);
+    }
+
+    /* ============================================
+       Modal (iOS Sheet Style)
+       ============================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 200;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      width: 100%;
+      max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 0 0 calc(20px + var(--safe-bottom)) 0;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .modal-overlay.show .modal {
+      transform: translateY(0);
+    }
+
+    .modal-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 12px auto 0;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 14px;
+      border-bottom: 0.5px solid var(--separator);
+    }
+
+    .modal-header h2 {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: var(--bg);
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      font-size: 16px;
+      transition: var(--transition);
+    }
+
+    .modal-close:hover {
+      background: var(--border);
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="date"],
+    .form-group select {
+      width: 100%;
+      padding: 14px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      font-family: inherit;
+      background: var(--bg);
+      color: var(--text-primary);
+      transition: var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      background: #e8e8ff;
+    }
+
+    .category-selector {
+      display: flex;
+      gap: 8px;
+    }
+
+    .cat-btn {
+      flex: 1;
+      padding: 12px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+    }
+
+    .cat-btn.active {
+      border-color: var(--primary);
+      background: #e8e8ff;
+      color: var(--primary);
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 12px;
+      padding: 0 20px 20px;
+    }
+
+    .btn-cancel, .btn-save, .btn-delete {
+      flex: 1;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .btn-cancel {
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
+
+    .btn-save {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-save:active {
+      opacity: 0.8;
+      transform: scale(0.98);
+    }
+
+    .btn-delete {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Delete confirmation modal */
+    .delete-modal {
+      max-width: 300px;
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--safe-bottom);
+    }
+
+    /* ============================================
+       Animations
+       ============================================ */
+    .task-item.removing {
+      animation: slideOut 0.25s ease-in forwards;
+    }
+
+    @keyframes slideOut {
+      to {
+        opacity: 0;
+        transform: translateX(100px);
+        height: 0;
+        padding: 0;
+        margin: 0;
+        border: none;
+      }
+    }
+
+    /* ============================================
+       Responsive
+       ============================================ */
+    @media (min-width: 500px) {
+      .modal {
+        border-radius: var(--radius-lg);
+        margin-bottom: 20px;
+      }
+
+      .modal-overlay {
+        align-items: center;
+      }
+
+      .modal-overlay.show .modal {
+        animation: modalPop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+
+      @keyframes modalPop {
+        from { opacity: 0; transform: scale(0.95) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
+    }
+
+    .app-main::-webkit-scrollbar { width: 0; }
+  </style>
+</head>
+<body>
+  <!-- Status bar spacer for iOS -->
+  <div class="status-bar-spacer"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-top">
+      <h1 class="app-title">待办清单</h1>
+      <span class="task-count" id="taskCount">0 项待办</span>
+    </div>
+    <nav class="category-tabs" id="categoryTabs">
+      <button class="tab active" data-category="all">全部</button>
+      <button class="tab" data-category="work">💼 工作</button>
+      <button class="tab" data-category="personal">🏠 个人</button>
+      <button class="tab" data-category="shopping">🛒 购物</button>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <main class="app-main" id="appMain">
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">✨</div>
+      <h2>还没有待办事项</h2>
+      <p>点击右下角 + 添加你的第一个任务</p>
+    </div>
+
+    <!-- Task list -->
+    <ul class="task-list" id="taskList"></ul>
+  </main>
+
+  <!-- FAB (Floating Action Button) -->
+  <button class="fab" id="fabBtn" aria-label="添加任务">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
+
+  <!-- Add/Edit Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 id="modalTitle">新建任务</h2>
+        <button class="modal-close" id="modalClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="taskInput">任务内容</label>
+          <input type="text" id="taskInput" placeholder="输入任务内容..." autocomplete="off" maxlength="200">
+        </div>
+        <div class="form-group">
+          <label>分类</label>
+          <div class="category-selector" id="categorySelector">
+            <button class="cat-btn active" data-cat="work">💼 工作</button>
+            <button class="cat-btn" data-cat="personal">🏠 个人</button>
+            <button class="cat-btn" data-cat="shopping">🛒 购物</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="prioritySelect">优先级</label>
+          <select id="prioritySelect">
+            <option value="low">低</option>
+            <option value="medium" selected>中</option>
+            <option value="high">高</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="dueDateInput">截止日期（可选）</label>
+          <input type="date" id="dueDateInput">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="btnCancel">取消</button>
+        <button class="btn-save" id="btnSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div class="modal-overlay" id="deleteOverlay" style="display:none">
+    <div class="modal delete-modal">
+      <div class="modal-handle"></div>
+      <div class="modal-body">
+        <p style="text-align:center;font-size:17px;font-weight:600;">删除任务？</p>
+        <p style="text-align:center;font-size:15px;color:var(--text-tertiary);margin-top:8px;">此操作无法撤销</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="btnDeleteCancel">取消</button>
+        <button class="btn-delete" id="btnDeleteConfirm">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 待办清单 App — 主逻辑
+     * 功能：CRUD、分类筛选、优先级、截止日期、本地持久化
+     */
+
+    (function () {
+      'use strict';
+
+      // ============================================
+      // State
+      // ============================================
+      const STORAGE_KEY = 'todo_app_tasks';
+      let tasks = [];
+      let currentCategory = 'all';
+      let editingId = null;
+      let selectedCategory = 'work';
+      let deleteTargetId = null;
+
+      // ============================================
+      // DOM References
+      // ============================================
+      const $ = (sel) => document.querySelector(sel);
+      const taskList = $('#taskList');
+      const emptyState = $('#emptyState');
+      const taskCount = $('#taskCount');
+      const modalOverlay = $('#modalOverlay');
+      const modalTitle = $('#modalTitle');
+      const taskInput = $('#taskInput');
+      const prioritySelect = $('#prioritySelect');
+      const dueDateInput = $('#dueDateInput');
+      const categorySelector = $('#categorySelector');
+      const deleteOverlay = $('#deleteOverlay');
+
+      // ============================================
+      // Persistence
+      // ============================================
+      function loadTasks() {
+        try {
+          const data = localStorage.getItem(STORAGE_KEY);
+          tasks = data ? JSON.parse(data) : [];
+        } catch (e) {
+          tasks = [];
+        }
+      }
+
+      function saveTasks() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      }
+
+      // ============================================
+      // Helpers
+      // ============================================
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        if (date.getTime() === today.getTime()) return '今天';
+        if (date.getTime() === tomorrow.getTime()) return '明天';
+
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}月${day}日`;
+      }
+
+      function isOverdue(dateStr) {
+        if (!dateStr) return false;
+        const date = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return date < today;
+      }
+
+      function getFilteredTasks() {
+        if (currentCategory === 'all') return tasks;
+        return tasks.filter((t) => t.category === currentCategory);
+      }
+
+      function getPendingCount() {
+        return tasks.filter((t) => !t.completed).length;
+      }
+
+      // ============================================
+      // Render
+      // ============================================
+      function render() {
+        const filtered = getFilteredTasks();
+        const pending = getPendingCount();
+
+        // Update count badge
+        taskCount.textContent = `${pending} 项待办`;
+
+        // Show/hide empty state
+        if (filtered.length === 0) {
+          emptyState.style.display = 'flex';
+          taskList.innerHTML = '';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+
+        // Sort: incomplete first, then by priority (high > medium > low), then by creation
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const sorted = [...filtered].sort((a, b) => {
+          if (a.completed !== b.completed) return a.completed ? 1 : -1;
+          if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+          }
+          return b.createdAt - a.createdAt;
+        });
+
+        taskList.innerHTML = sorted.map((task) => createTaskHTML(task)).join('');
+        attachTaskListeners();
+      }
+
+      function createTaskHTML(task) {
+        const checkedClass = task.completed ? 'checked' : '';
+        const itemClass = task.completed ? 'completed' : '';
+        const catClass = `cat-${task.category}`;
+        const catLabel = { work: '工作', personal: '个人', shopping: '购物' }[task.category] || '';
+        const dueText = formatDate(task.dueDate);
+        const overdueClass = task.dueDate && isOverdue(task.dueDate) && !task.completed ? 'overdue' : '';
+
+        return `
+          <li class="task-item ${itemClass}" data-id="${task.id}">
+            <div class="swipe-bg">删除</div>
+            <div class="task-check ${checkedClass}" data-action="toggle"></div>
+            <div class="task-body">
+              <div class="task-text">${escapeHtml(task.text)}</div>
+              <div class="task-meta">
+                <span class="task-priority-dot priority-${task.priority}" title="${task.priority}级"></span>
+                <span class="task-category ${catClass}">${catLabel}</span>
+                ${dueText ? `<span class="task-due ${overdueClass}">📅 ${dueText}${isOverdue(task.dueDate) ? ' (已过期)' : ''}</span>` : ''}
+              </div>
+            </div>
+          </li>
+        `;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // ============================================
+      // Event Handlers
+      // ============================================
+      function attachTaskListeners() {
+        taskList.querySelectorAll('.task-check').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.closest('.task-item').dataset.id;
+            toggleTask(id);
+          });
+        });
+      }
+
+      function toggleTask(id) {
+        const task = tasks.find((t) => t.id === id);
+        if (task) {
+          task.completed = !task.completed;
+          saveTasks();
+          render();
+        }
+      }
+
+      function openAddModal() {
+        editingId = null;
+        modalTitle.textContent = '新建任务';
+        taskInput.value = '';
+        prioritySelect.value = 'medium';
+        dueDateInput.value = '';
+        selectedCategory = 'work';
+        updateCategoryButtons();
+        openModal(modalOverlay);
+        setTimeout(() => taskInput.focus(), 350);
+      }
+
+      function openEditModal(id) {
+        const task = tasks.find((t) => t.id === id);
+        if (!task) return;
+
+        editingId = id;
+        modalTitle.textContent = '编辑任务';
+        taskInput.value = task.text;
+        prioritySelect.value = task.priority;
+        dueDateInput.value = task.dueDate || '';
+        selectedCategory = task.category;
+        updateCategoryButtons();
+        openModal(modalOverlay);
+      }
+
+      function openModal(overlay) {
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => {
+          overlay.classList.add('show');
+        });
+      }
+
+      function closeModal(overlay) {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          editingId = null;
+        }, 300);
+      }
+
+      function openDeleteConfirm(id) {
+        deleteTargetId = id;
+        deleteOverlay.style.display = 'flex';
+        requestAnimationFrame(() => {
+          deleteOverlay.classList.add('show');
+        });
+      }
+
+      function closeDeleteModal() {
+        deleteOverlay.classList.remove('show');
+        setTimeout(() => {
+          deleteOverlay.style.display = 'none';
+          deleteTargetId = null;
+        }, 300);
+      }
+
+      function deleteTask(id) {
+        const el = taskList.querySelector(`[data-id="${id}"]`);
+        if (el) {
+          el.classList.add('removing');
+          setTimeout(() => {
+            tasks = tasks.filter((t) => t.id !== id);
+            saveTasks();
+            render();
+            closeDeleteModal();
+          }, 250);
+        } else {
+          tasks = tasks.filter((t) => t.id !== id);
+          saveTasks();
+          render();
+          closeDeleteModal();
+        }
+      }
+
+      function saveTask() {
+        const text = taskInput.value.trim();
+        if (!text) {
+          taskInput.focus();
+          taskInput.style.background = '#ffe4e4';
+          setTimeout(() => {
+            taskInput.style.background = '';
+          }, 1500);
+          return;
+        }
+
+        if (editingId) {
+          const task = tasks.find((t) => t.id === editingId);
+          if (task) {
+            task.text = text;
+            task.category = selectedCategory;
+            task.priority = prioritySelect.value;
+            task.dueDate = dueDateInput.value || null;
+          }
+        } else {
+          tasks.push({
+            id: generateId(),
+            text,
+            category: selectedCategory,
+            priority: prioritySelect.value,
+            dueDate: dueDateInput.value || null,
+            completed: false,
+            createdAt: Date.now(),
+          });
+        }
+
+        saveTasks();
+        closeModal(modalOverlay);
+        render();
+      }
+
+      function updateCategoryButtons() {
+        categorySelector.querySelectorAll('.cat-btn').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.cat === selectedCategory);
+        });
+      }
+
+      // ============================================
+      // Tab switching
+      // ============================================
+      function setupTabs() {
+        document.querySelectorAll('.tab').forEach((tab) => {
+          tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentCategory = tab.dataset.category;
+            render();
+          });
+        });
+      }
+
+      // ============================================
+      // Category selector buttons
+      // ============================================
+      function setupCategorySelector() {
+        categorySelector.querySelectorAll('.cat-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            selectedCategory = btn.dataset.cat;
+            updateCategoryButtons();
+          });
+        });
+      }
+
+      // ============================================
+      // Swipe-to-delete (touch)
+      // ============================================
+      function setupSwipeToDelete() {
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let activeItem = null;
+
+        taskList.addEventListener('touchstart', (e) => {
+          const item = e.target.closest('.task-item');
+          if (!item || e.target.closest('[data-action]')) return;
+          activeItem = item;
+          startX = e.touches[0].clientX;
+          isDragging = true;
+        }, { passive: true });
+
+        taskList.addEventListener('touchmove', (e) => {
+          if (!isDragging || !activeItem) return;
+          currentX = e.touches[0].clientX;
+          const diff = currentX - startX;
+          if (diff < -10) {
+            activeItem.style.transition = 'none';
+            activeItem.style.transform = `translateX(${diff}px)`;
+          }
+        }, { passive: true });
+
+        taskList.addEventListener('touchend', () => {
+          if (!isDragging || !activeItem) return;
+          isDragging = false;
+          const diff = currentX - startX;
+
+          if (diff < -80) {
+            activeItem.classList.add('swiped');
+            // Show delete on swipe
+            const id = activeItem.dataset.id;
+            setTimeout(() => {
+              openDeleteConfirm(id);
+              activeItem.classList.remove('swiped');
+              activeItem.style.transform = '';
+            }, 200);
+          } else {
+            activeItem.style.transition = 'transform 0.2s ease';
+            activeItem.style.transform = '';
+          }
+
+          activeItem = null;
+          startX = 0;
+          currentX = 0;
+        });
+      }
+
+      // ============================================
+      // Service Worker Registration
+      // ============================================
+      function registerSW() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((reg) => console.log('SW registered:', reg.scope))
+            .catch((err) => console.log('SW registration failed:', err));
+        }
+      }
+
+      // ============================================
+      // iOS Install Prompt (Add to Home Screen)
+      // ============================================
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+      });
+
+      // ============================================
+      // Init
+      // ============================================
+      function init() {
+        loadTasks();
+        setupTabs();
+        setupCategorySelector();
+        setupSwipeToDelete();
+
+        // FAB button
+        $('#fabBtn').addEventListener('click', openAddModal);
+
+        // Modal close buttons
+        $('#modalClose').addEventListener('click', () => closeModal(modalOverlay));
+        $('#btnCancel').addEventListener('click', () => closeModal(modalOverlay));
+        $('#btnDeleteCancel').addEventListener('click', closeDeleteModal);
+
+        // Save button
+        $('#btnSave').addEventListener('click', saveTask);
+
+        // Delete confirm
+        $('#btnDeleteConfirm').addEventListener('click', () => {
+          if (deleteTargetId) deleteTask(deleteTargetId);
+        });
+
+        // Overlay click to close
+        modalOverlay.addEventListener('click', (e) => {
+          if (e.target === modalOverlay) closeModal(modalOverlay);
+        });
+        deleteOverlay.addEventListener('click', (e) => {
+          if (e.target === deleteOverlay) closeDeleteModal();
+        });
+
+        // Enter key to save
+        taskInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') saveTask();
+        });
+
+        // Long press to edit
+        let longPressTimer;
+        taskList.addEventListener('touchstart', (e) => {
+          const item = e.target.closest('.task-item');
+          if (!item || e.target.closest('[data-action]')) return;
+          longPressTimer = setTimeout(() => {
+            const id = item.dataset.id;
+            openEditModal(id);
+          }, 500);
+        });
+        taskList.addEventListener('touchend', () => clearTimeout(longPressTimer));
+        taskList.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+        // Register service worker
+        registerSW();
+
+        // Initial render
+        render();
+      }
+
+      // Start the app
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
